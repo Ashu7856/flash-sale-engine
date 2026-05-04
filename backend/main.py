@@ -1,3 +1,5 @@
+import redis
+r = redis.Redis(host="localhost", port=6379, decode_responses=True)
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 import redis
@@ -12,7 +14,9 @@ app.add_middleware(
 )
 
 # Redis connect karo
-r = redis.Redis(host="localhost", port=6379, decode_responses=True)
+import os
+REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379")
+r = redis.from_url(REDIS_URL, decode_responses=True)
 
 # Products ka data
 products = [
