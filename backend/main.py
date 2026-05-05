@@ -1,6 +1,7 @@
 from fastapi import FastAPI, HTTPException, WebSocket, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
+from pydantic import BaseModel
 from typing import List
 from passlib.context import CryptContext
 from jose import jwt
@@ -19,9 +20,6 @@ app.add_middleware(
 )
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login")
-
-# In-memory users store
 users_db = {}
 
 products = [
@@ -30,17 +28,18 @@ products = [
     {"id": 3, "name": "iPhone Case", "emoji": "📱", "price": 499, "original": 1499, "stock": 100},
 ]
 
+class UserInput(BaseModel):
+    username: str
+    password: str
+
 class ConnectionManager:
     def __init__(self):
         self.active_connections: List[WebSocket] = []
-
     async def connect(self, websocket: WebSocket):
         await websocket.accept()
         self.active_connections.append(websocket)
-
     def disconnect(self, websocket: WebSocket):
         self.active_connections.remove(websocket)
-
     async def broadcast(self, message: dict):
         for connection in self.active_connections:
             await connection.send_text(json.dumps(message))
@@ -52,18 +51,18 @@ def home():
     return {"message": "Flash Sale API is running!"}
 
 @app.post("/register")
-def register(form: OAuth2PasswordRequestForm = Depends()):
-    if form.username in users_db:
+def register(user: UserInput):
+    if user.username in users_db:
         raise HTTPException(status_code=400, detail="User already exists")
-    users_db[form.username] = pwd_context.hash(form.password)
+    users_db[user.username] = pwd_context.hash(user.password)
     return {"message": "Registered successfully!"}
 
 @app.post("/login")
-def login(form: OAuth2PasswordRequestForm = Depends()):
-    user = users_db.get(form.username)
-    if not user or not pwd_context.verify(form.password, user):
+def login(user: UserInput):
+    u = users_db.get(user.username)
+    if not u or not pwd_context.verify(user.password, u):
         raise HTTPException(status_code=401, detail="Invalid credentials")
-    token = jwt.encode({"sub": form.username}, SECRET_KEY, algorithm=ALGORITHM)
+    token = jwt.encode({"sub": user.username}, SECRET_KEY, algorithm=ALGORITHM)
     return {"access_token": token, "token_type": "bearer"}
 
 @app.get("/products")
