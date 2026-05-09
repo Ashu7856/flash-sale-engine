@@ -15,11 +15,14 @@ export default function Home() {
   const [products, setProducts] = useState<Product[]>([]);
   const [queue, setQueue] = useState<{[key: number]: number}>({});
   const [viewers, setViewers] = useState(2431);
+  const [showDropdown, setShowDropdown] = useState(false);
+  const [username, setUsername] = useState("");
   const saleEnded = time === 0;
 
   useEffect(() => {
     const token = localStorage.getItem("token");
     if (!token) window.location.href = "/login";
+    else setUsername(token);
   }, []);
 
   useEffect(() => {
@@ -44,11 +47,11 @@ export default function Home() {
 
   const handleBuy = async (id: number) => {
     if (saleEnded) return;
-    const username = localStorage.getItem("token") || "";
+    const u = localStorage.getItem("token") || "";
     const res = await fetch("https://flash-sale-engine-backend.onrender.com/buy/" + id, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ username }),
+      body: JSON.stringify({ username: u }),
     });
     const data = await res.json();
     if (res.ok) {
@@ -65,9 +68,35 @@ export default function Home() {
 
   return (
     <main className="relative min-h-screen bg-black text-white flex flex-col items-center p-8">
+      
+      {/* Navbar */}
+      <div className="absolute top-4 right-4">
+        <button
+          onClick={() => setShowDropdown(!showDropdown)}
+          className="w-10 h-10 rounded-full bg-red-600 text-white font-bold text-lg flex items-center justify-center"
+        >
+          {username ? username[0].toUpperCase() : "U"}
+        </button>
+        {showDropdown && (
+          <div className="absolute right-0 mt-2 w-48 bg-zinc-900 border border-zinc-700 rounded-xl shadow-lg z-10">
+            <p className="px-4 py-3 text-zinc-400 text-sm border-b border-zinc-700">👤 {username}</p>
+            <button
+              onClick={() => window.location.href = "/orders"}
+              className="w-full text-left px-4 py-3 hover:bg-zinc-800 text-white"
+            >
+              📦 My Orders
+            </button>
+            <button
+              onClick={() => { localStorage.removeItem("token"); window.location.href = "/login"; }}
+              className="w-full text-left px-4 py-3 hover:bg-zinc-800 text-red-400 rounded-b-xl"
+            >
+              🚪 Logout
+            </button>
+          </div>
+        )}
+      </div>
+
       <h1 className="text-6xl font-bold text-red-500 mt-8">⚡ Flash Sale</h1>
-      <button onClick={() => { localStorage.removeItem("token"); window.location.href = "/login"; }} className="absolute top-4 right-4 bg-zinc-800 text-white px-4 py-2 rounded-xl text-sm">Logout</button>
-      <button onClick={() => window.location.href = "/orders"} className="absolute top-4 left-4 bg-zinc-800 text-white px-4 py-2 rounded-xl text-sm">📦 My Orders</button>
       {saleEnded ? (
         <div className="mt-10 text-center">
           <p className="text-6xl">😢</p>
