@@ -22,7 +22,7 @@ export default function Login() {
         localStorage.setItem("token", data.access_token);
         router.push("/");
       } else {
-        setMessage("Registered! Ab login karo.");
+        setMessage("Registered! Please login now.");
         setIsRegister(false);
       }
     } else {
