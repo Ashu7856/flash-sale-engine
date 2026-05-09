@@ -61,8 +61,9 @@ export default function Home() {
   const seconds = String(time % 60).padStart(2, "0");
 
   return (
-    <main className="min-h-screen bg-black text-white flex flex-col items-center p-8">
+    <main className="relative min-h-screen bg-black text-white flex flex-col items-center p-8">
       <h1 className="text-6xl font-bold text-red-500 mt-8">⚡ Flash Sale</h1>
+      <button onClick={() => { localStorage.removeItem("token"); window.location.href = "/login"; }} className="absolute top-4 right-4 bg-zinc-800 text-white px-4 py-2 rounded-xl text-sm">Logout</button>
       {saleEnded ? (
         <div className="mt-10 text-center">
           <p className="text-6xl">😢</p>
