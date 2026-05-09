@@ -44,8 +44,11 @@ export default function Home() {
 
   const handleBuy = async (id: number) => {
     if (saleEnded) return;
+    const username = localStorage.getItem("token") || "";
     const res = await fetch("https://flash-sale-engine-backend.onrender.com/buy/" + id, {
       method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username }),
     });
     const data = await res.json();
     if (res.ok) {
