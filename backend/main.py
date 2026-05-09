@@ -1,14 +1,9 @@
-from fastapi import FastAPI, HTTPException, WebSocket, Depends
+from fastapi import FastAPI, HTTPException, WebSocket
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from pydantic import BaseModel
 from typing import List
-from passlib.context import CryptContext
-from jose import jwt
 import json
-
-SECRET_KEY = "flash-sale-secret-123"
-ALGORITHM = "HS256"
+import hashlib
 
 app = FastAPI()
 
@@ -19,7 +14,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 users_db = {}
 
 products = [
@@ -46,6 +40,9 @@ class ConnectionManager:
 
 manager = ConnectionManager()
 
+def hash_password(password: str) -> str:
+    return hashlib.sha256(password.encode()).hexdigest()
+
 @app.get("/")
 def home():
     return {"message": "Flash Sale API is running!"}
@@ -54,16 +51,15 @@ def home():
 def register(user: UserInput):
     if user.username in users_db:
         raise HTTPException(status_code=400, detail="User already exists")
-    users_db[user.username] = pwd_context.hash(user.password)
+    users_db[user.username] = hash_password(user.password)
     return {"message": "Registered successfully!"}
 
 @app.post("/login")
 def login(user: UserInput):
     u = users_db.get(user.username)
-    if not u or not pwd_context.verify(user.password, u):
+    if not u or u != hash_password(user.password):
         raise HTTPException(status_code=401, detail="Invalid credentials")
-    token = jwt.encode({"sub": user.username}, SECRET_KEY, algorithm=ALGORITHM)
-    return {"access_token": token, "token_type": "bearer"}
+    return {"access_token": user.username, "token_type": "bearer"}
 
 @app.get("/products")
 def get_products():
