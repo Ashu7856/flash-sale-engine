@@ -1,7 +1,7 @@
 from fastapi import FastAPI, HTTPException, WebSocket
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from typing import List
+from typing import List, Dict
 import json
 import hashlib
 
@@ -15,6 +15,7 @@ app.add_middleware(
 )
 
 users_db = {}
+orders_db: Dict[str, list] = {}
 
 products = [
     {"id": 1, "name": "Air Max Pro", "emoji": "👟", "price": 1999, "original": 4999, "stock": 47},
@@ -25,6 +26,9 @@ products = [
 class UserInput(BaseModel):
     username: str
     password: str
+
+class BuyInput(BaseModel):
+    username: str
 
 class ConnectionManager:
     def __init__(self):
@@ -66,15 +70,30 @@ def get_products():
     return products
 
 @app.post("/buy/{product_id}")
-async def buy_product(product_id: int):
+async def buy_product(product_id: int, buyer: BuyInput):
     product = next((p for p in products if p["id"] == product_id), None)
     if not product:
         raise HTTPException(status_code=404, detail="Product not found")
     if product["stock"] <= 0:
         raise HTTPException(status_code=400, detail="Out of stock!")
     product["stock"] -= 1
+    
+    # Order store karo
+    if buyer.username not in orders_db:
+        orders_db[buyer.username] = []
+    orders_db[buyer.username].append({
+        "product_id": product_id,
+        "product_name": product["name"],
+        "emoji": product["emoji"],
+        "price": product["price"],
+    })
+    
     await manager.broadcast({"type": "stock_update", "id": product_id, "stock": product["stock"]})
     return {"message": "Successfully added to queue!", "product": product["name"], "remaining_stock": product["stock"]}
+
+@app.get("/orders/{username}")
+def get_orders(username: str):
+    return orders_db.get(username, [])
 
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
