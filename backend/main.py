@@ -1,5 +1,5 @@
 from fastapi import FastAPI, HTTPException, WebSocket
-import google.generativeai as genai
+from google import genai
 import os
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -129,6 +129,9 @@ If asked about which product to buy, give a recommendation based on discount and
 
 User question: {input.message}"""
 
-    model = genai.GenerativeModel("gemini-1.5-flash")
-    response = model.generate_content(prompt)
-    return {"reply": response.text}
+    client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
+response = client.models.generate_content(
+    model="gemini-2.0-flash",
+    contents=prompt
+)
+return {"reply": response.text}
