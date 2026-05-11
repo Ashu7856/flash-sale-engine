@@ -4,3 +4,4 @@ redis
 passlib[bcrypt]
 python-jose
 python-multipart
+google-generativeai
