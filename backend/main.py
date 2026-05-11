@@ -1,4 +1,6 @@
 from fastapi import FastAPI, HTTPException, WebSocket
+import google.generativeai as genai
+import os
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import List, Dict
@@ -103,8 +105,6 @@ async def websocket_endpoint(websocket: WebSocket):
             await websocket.receive_text()
     except:
         manager.disconnect(websocket)
-        import google.generativeai as genai
-import os
 
 genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
 
