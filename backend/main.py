@@ -1,11 +1,11 @@
 from fastapi import FastAPI, HTTPException, WebSocket
-from google import genai
-import os
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import List, Dict
+from google import genai
 import json
 import hashlib
+import os
 
 app = FastAPI()
 
@@ -31,6 +31,9 @@ class UserInput(BaseModel):
 
 class BuyInput(BaseModel):
     username: str
+
+class ChatInput(BaseModel):
+    message: str
 
 class ConnectionManager:
     def __init__(self):
@@ -79,8 +82,6 @@ async def buy_product(product_id: int, buyer: BuyInput):
     if product["stock"] <= 0:
         raise HTTPException(status_code=400, detail="Out of stock!")
     product["stock"] -= 1
-    
-    # Order store karo
     if buyer.username not in orders_db:
         orders_db[buyer.username] = []
     orders_db[buyer.username].append({
@@ -89,7 +90,6 @@ async def buy_product(product_id: int, buyer: BuyInput):
         "emoji": product["emoji"],
         "price": product["price"],
     })
-    
     await manager.broadcast({"type": "stock_update", "id": product_id, "stock": product["stock"]})
     return {"message": "Successfully added to queue!", "product": product["name"], "remaining_stock": product["stock"]}
 
@@ -97,29 +97,13 @@ async def buy_product(product_id: int, buyer: BuyInput):
 def get_orders(username: str):
     return orders_db.get(username, [])
 
-@app.websocket("/ws")
-async def websocket_endpoint(websocket: WebSocket):
-    await manager.connect(websocket)
-    try:
-        while True:
-            await websocket.receive_text()
-    except:
-        manager.disconnect(websocket)
-
-genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
-
-class ChatInput(BaseModel):
-    message: str
-
 @app.post("/chat")
 async def chat(input: ChatInput):
-    # RAG — product data as context
     product_context = "\n".join([
-        f"- {p['name']} (emoji: {p['emoji']}): Price ₹{p['price']} (original ₹{p['original']}), Stock: {p['stock']} left, Discount: {round((1 - p['price']/p['original'])*100)}% off"
+        f"- {p['name']} (emoji: {p['emoji']}): Price Rs.{p['price']} (original Rs.{p['original']}), Stock: {p['stock']} left, Discount: {round((1 - p['price']/p['original'])*100)}% off"
         for p in products
     ])
-    
-    prompt = f"""You are a helpful AI assistant for a Flash Sale. 
+    prompt = f"""You are a helpful AI assistant for a Flash Sale.
 Here are the current products on sale:
 
 {product_context}
@@ -130,8 +114,17 @@ If asked about which product to buy, give a recommendation based on discount and
 User question: {input.message}"""
 
     client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
-response = client.models.generate_content(
-    model="gemini-2.0-flash",
-    contents=prompt
-)
-return {"reply": response.text}
+    response = client.models.generate_content(
+        model="gemini-2.0-flash",
+        contents=prompt
+    )
+    return {"reply": response.text}
+
+@app.websocket("/ws")
+async def websocket_endpoint(websocket: WebSocket):
+    await manager.connect(websocket)
+    try:
+        while True:
+            await websocket.receive_text()
+    except:
+        manager.disconnect(websocket)
