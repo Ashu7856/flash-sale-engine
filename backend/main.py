@@ -103,3 +103,32 @@ async def websocket_endpoint(websocket: WebSocket):
             await websocket.receive_text()
     except:
         manager.disconnect(websocket)
+        import google.generativeai as genai
+import os
+
+genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
+
+class ChatInput(BaseModel):
+    message: str
+
+@app.post("/chat")
+async def chat(input: ChatInput):
+    # RAG — product data as context
+    product_context = "\n".join([
+        f"- {p['name']} (emoji: {p['emoji']}): Price ₹{p['price']} (original ₹{p['original']}), Stock: {p['stock']} left, Discount: {round((1 - p['price']/p['original'])*100)}% off"
+        for p in products
+    ])
+    
+    prompt = f"""You are a helpful AI assistant for a Flash Sale. 
+Here are the current products on sale:
+
+{product_context}
+
+Answer the user's question based on this product data. Be concise and helpful.
+If asked about which product to buy, give a recommendation based on discount and stock.
+
+User question: {input.message}"""
+
+    model = genai.GenerativeModel("gemini-1.5-flash")
+    response = model.generate_content(prompt)
+    return {"reply": response.text}
